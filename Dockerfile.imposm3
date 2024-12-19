@@ -1,0 +1,10 @@
+FROM debian:12.8
+
+ARG version=0.14.0
+RUN apt-get update && apt-get install -y wget tar
+
+RUN wget -O imposm.tar.gz https://github.com/omniscale/imposm3/releases/download/v${version}/imposm-${version}-linux-x86-64.tar.gz \
+    && tar --strip-components=1 -xzf imposm.tar.gz -C /usr/local/bin \
+    && rm imposm.tar.gz
+
+ENTRYPOINT [ "imposm" ]

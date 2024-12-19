@@ -1,0 +1,17 @@
+#!/bin/bash
+set -eo pipefail
+
+DIR="$(dirname "$(readlink -f "$0")")"
+cd $DIR/../
+
+read -p "Are you sure you want to remove everything and start fresh? (y/n): " confirm
+if [[ $confirm != [yY] ]]; then
+    echo "Aborting."
+    exit 1
+fi
+docker compose kill && docker compose rm -s -v -f
+sudo rm -rf ./data/db
+sudo rm -rf ./data/import-cache
+sudo rm -rf ./data/sources
+sudo rm -rf ./data/tile-cache
+sudo rm -rf ./data/tmp

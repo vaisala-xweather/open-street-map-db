@@ -1,0 +1,38 @@
+FROM debian:12.8 as builder
+
+RUN apt update \
+    && apt install -y \
+        cmake \
+        g++ \
+        gdal-bin \
+        libboost-dev \
+        libbz2-dev \
+        libexpat1-dev \
+        liblua5.3-dev \
+        libopencv-dev \
+        libpotrace-dev \
+        libpq-dev \
+        libproj-dev \
+        lua5.3 \
+        make \
+        nlohmann-json3-dev \
+        pandoc \
+        postgresql \
+        pyosmium \
+        wget \
+        zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt clean
+
+# Install osm2pgsql from source
+WORKDIR /opt
+RUN mkdir -p /opt/osm2pgsql && cd /opt/osm2pgsql \
+    && wget -O osm2pgsql.tar.gz 'https://github.com/osm2pgsql-dev/osm2pgsql/archive/refs/tags/2.0.1.tar.gz' \
+    && tar --strip-components=1 -xzf osm2pgsql.tar.gz \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make \
+    && make install
+
+ENTRYPOINT [ "osm2pgsql" ]

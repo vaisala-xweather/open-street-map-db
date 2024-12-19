@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+DIR="$(dirname "$(readlink -f "$0")")"
+cd $DIR/../
+
+docker compose up -d db
+sleep 5
+docker compose up --remove-orphans import-extra-oceans
+docker compose up import-extra-continents
+docker compose up import-extra-coastlines
+docker compose up import
+docker compose up import-gen

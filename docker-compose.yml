@@ -1,0 +1,128 @@
+networks:
+  open-street-map:
+
+x-definitions:
+  region: &region monaco
+
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    volumes:
+      - ./scripts/init-postgis-osm.sh:/docker-entrypoint-initdb.d/99-osm.sh:ro
+      - ./data/db:/var/lib/postgresql/data:rw
+    environment:
+      - POSTGRES_DB=gis
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    networks:
+      - open-street-map
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+
+  import:
+    build:
+      context: .
+      dockerfile: Dockerfile.osm2pgsql
+    image: four43/osm2pgsql:stable
+    environment:
+      LUA_PATH: /config/osm2pgsql-themepark/lua/?.lua;;
+      THEMEPARK_PATH: "/config/osm2pgsql-themepark:/config/xweather-themepark/themes"
+      THEMEPARK_DEBUG: "true"
+      PGHOST: db
+      PGUSER: osm
+      PGPASSWORD: osm
+    volumes:
+      - ./config/osm2pgsql:/config:ro
+      - ./data/downloads/:/data:rw
+      # - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
+      # - ./data/downloads/us-midwest.osm.pbf:/osm.pbf:ro
+      - ./data/downloads/north-america.osm.pbf:/osm.pbf:ro
+      # - ./data/downloads/world.osm.pbf:/osm.pbf:ro
+      - ./data/import-cache:/cache:z
+    networks:
+      - open-street-map
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - --create
+      - --output=flex
+      - --hstore
+      - --slim
+      - --cache
+      - "4096"
+      - -S
+      - /config/style.lua
+      - -d
+      - 'postgresql://osm:osm@db/osm'
+      - /osm.pbf
+
+
+  import-extra-oceans:
+    extends: import
+    entrypoint:
+      - /config/xweather-themepark/themes/external/download-and-import.sh
+      - /data
+      - osm
+      - oceans
+      - oceans
+  import-extra-continents:
+    extends: import-extra-oceans
+    entrypoint:
+      - /config/xweather-themepark/themes/external/download-and-import.sh
+      - /data
+      - osm
+      - continents
+      - continents
+  import-extra-coastlines:
+    extends: import-extra-oceans
+    entrypoint:
+      - /config/xweather-themepark/themes/external/download-and-import.sh
+      - /data
+      - osm
+      - coastlines
+      - coastlines
+
+  # Generates simplified geometry tables for lower resolution queries to improve
+  # performance for large scale maps
+  import-gen:
+    extends: import
+    environment:
+      OSM2PGSQL_GEN: full
+    entrypoint: osm2pgsql-gen
+    command:
+      - -d
+      - 'postgresql://osm:osm@db/osm'
+      - -S
+      - /config/style.lua
+
+  tile-server:
+    image: gospatial/tegola:v0.20.0
+    entrypoint: /opt/tegola
+    command: serve --config /config/tegola.conf
+    volumes:
+      # :z needed on systems like fedora using selinux
+      # when using host mounted volumes
+      - ./config/tegola:/config:z
+      - ./data/tile-cache:/tmp/tegola:z
+    depends_on:
+      - db
+    ports:
+      - 9090:9090
+    networks:
+      - open-street-map
+    environment:
+      - POSTGRES_USER=osm
+      - POSTGRES_PASSWORD=osm
+      - POSTGRES_DBNAME=osm
+      - POSTGRES_PRIVATE_PORT=5432
+      - POSTGRES_HOST=db
+      - TEGOLA_PORT=9090
+    restart: unless-stopped
