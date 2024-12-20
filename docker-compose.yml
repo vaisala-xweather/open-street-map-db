@@ -10,6 +10,7 @@ services:
     volumes:
       - ./scripts/init-postgis-osm.sh:/docker-entrypoint-initdb.d/99-osm.sh:ro
       - ./data/db:/var/lib/postgresql/data:rw
+    shm_size: 2GB
     environment:
       - POSTGRES_DB=gis
       - POSTGRES_USER=${POSTGRES_USER}
@@ -126,3 +127,25 @@ services:
       - POSTGRES_HOST=db
       - TEGOLA_PORT=9090
     restart: unless-stopped
+
+  tile-cache:
+    extends: tile-server
+    command: cache seed --config /config/tegola.conf tile-list /config/tiles.txt
+    ports: !override []
+    restart: no
+
+  tile-flatten:
+    build:
+      context: .
+      dockerfile: Dockerfile.gdal
+    volumes:
+      - ./data:/data:rw
+      - ./scripts:/scripts:r
+    networks:
+      - open-street-map
+    entrypoint:
+    command: /scripts/flatten-tiles.sh
+    depends_on:
+      # We query the Tegola server for some metadata information
+      - tile-server
+

@@ -9,6 +9,13 @@
             "database": "osm",
             "username": "docker",
             "password": "docker"
+        },
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "Mbtiles Testing",
+            "database": "./data/mvt_world.sqlite"
         }
-    ]
+    ],
+    "sqltools.useNodeRuntime": true
 }

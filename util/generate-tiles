@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+DIR="$(dirname "$(readlink -f "$0")")"
+cd "$DIR/../"
+
+rm -rf ./data/tile-cache/ || true
+docker compose run --remove-orphans tile-cache
+echo "Renaming cached files to have a .pbf suffix ..." >&2
+sudo chown -R $UID ./data/tile-cache || true
+./util/add-pbf-suffix ./data/tile-cache
+docker compose run tile-flatten

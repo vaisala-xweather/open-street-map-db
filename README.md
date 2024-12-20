@@ -2,6 +2,14 @@
 
 Following our standard Xweather approach - how can we make data work and make sense at each processing step?
 
+## Motivation
+
+We have some specific needs for when various data sets are shown to users. Those are:
+
+1. Roads at a lower zoom (more zoomed out) - Vaisala Xweather provides best in the world road weather modeling and having
+an overview available in a map is beneficial
+1. Electrical Infrastructure - We help protect and model various parts of energy infrastructure and we need to show this
+information in a visual way.
 
 ## Tools
 
