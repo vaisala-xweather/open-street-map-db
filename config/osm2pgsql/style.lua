@@ -71,7 +71,7 @@ themepark:add_topic('xweather_shortbread_v1/water')
 
 -- Must be after "pois" layer, because as per Shortbread spec addresses that
 -- are already in "pois" should not be in the "addresses" layer.
-themepark:add_topic('shortbread_v1/addresses')
+-- themepark:add_topic('shortbread_v1/addresses')
 
 -- ---------------------------------------------------------------------------
 

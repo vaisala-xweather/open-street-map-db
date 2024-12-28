@@ -3,6 +3,6 @@ set -euo pipefail
 DIR="$(dirname "$(readlink -f "$0")")"
 cd "$DIR/../"
 
-sudo chown -R $UID ./data/tile-cache
-rm -rf ./data/tile-cache/
+sudo chown -R $UID ./data/tile-cache || true
+rm -rf ./data/tile-cache/*
 docker compose up tile-server

@@ -6,8 +6,8 @@ cd $DIR/../
 
 docker compose up -d db
 sleep 5
-docker compose up --remove-orphans import-extra-oceans
-docker compose up import-extra-continents
-docker compose up import-extra-coastlines
+docker compose run --remove-orphans import-extra oceans
+docker compose run import-extra continents
+docker compose run import-extra coastlines
 docker compose up import
 docker compose up import-gen

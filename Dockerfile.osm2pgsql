@@ -20,6 +20,7 @@ RUN apt update \
         postgresql \
         pyosmium \
         wget \
+        unzip \
         zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt clean

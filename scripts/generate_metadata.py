@@ -106,7 +106,7 @@ if __name__ == "__main__":
         "attribution": tegola_metadata["attribution"],
         "description": tegola_metadata["description"],
         "format": "pbf",
-        "compression": "derp",
+        "compression": "gzip",
         "bounds": ",".join([str(x) for x in tegola_metadata["bounds"]]),
         "center": ",".join([str(x) for x in tegola_metadata["center"]]),
         "minzoom": tegola_metadata["minzoom"],

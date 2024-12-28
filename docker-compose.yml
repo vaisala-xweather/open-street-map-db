@@ -41,12 +41,13 @@ services:
       PGPASSWORD: osm
     volumes:
       - ./config/osm2pgsql:/config:ro
+      - ./scripts:/scripts:ro
       - ./data/downloads/:/data:rw
-      # - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
+      - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/us-midwest.osm.pbf:/osm.pbf:ro
-      - ./data/downloads/north-america.osm.pbf:/osm.pbf:ro
+      # - ./data/downloads/north-america.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/world.osm.pbf:/osm.pbf:ro
-      - ./data/import-cache:/cache:z
+      - ./data/import-cache:/cache:rw
     networks:
       - open-street-map
     depends_on:
@@ -66,30 +67,12 @@ services:
       - /osm.pbf
 
 
-  import-extra-oceans:
+  import-extra:
     extends: import
     entrypoint:
-      - /config/xweather-themepark/themes/external/download-and-import.sh
+      - /scripts/download-import-misc.sh
       - /data
-      - osm
-      - oceans
-      - oceans
-  import-extra-continents:
-    extends: import-extra-oceans
-    entrypoint:
-      - /config/xweather-themepark/themes/external/download-and-import.sh
-      - /data
-      - osm
-      - continents
-      - continents
-  import-extra-coastlines:
-    extends: import-extra-oceans
-    entrypoint:
-      - /config/xweather-themepark/themes/external/download-and-import.sh
-      - /data
-      - osm
-      - coastlines
-      - coastlines
+    command: !override []
 
   # Generates simplified geometry tables for lower resolution queries to improve
   # performance for large scale maps
@@ -105,7 +88,7 @@ services:
       - /config/style.lua
 
   tile-server:
-    image: gospatial/tegola:v0.20.0
+    image: gospatial/tegola:edge
     entrypoint: /opt/tegola
     command: serve --config /config/tegola.conf
     volumes:
@@ -130,7 +113,7 @@ services:
 
   tile-cache:
     extends: tile-server
-    command: cache seed --config /config/tegola.conf tile-list /config/tiles.txt
+    command: cache seed --config /config/tegola.conf --overwrite --bounds "-117.25,32.5,-117.0,32.75" --min-zoom 0 --max-zoom 14
     ports: !override []
     restart: no
 

@@ -12,6 +12,8 @@
             "console": "integratedTerminal",
             "args": [
                 "14",
+                "--global-zoom",
+                "8",
                 "--latlon",
                 "44.883",
                 "-93.222",
@@ -26,6 +28,16 @@
             "console": "integratedTerminal",
             "args": [
                 "8",
+            ]
+        },
+        {
+            "name": "Generate Tile List Global 14",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "./config/tegola/tile_list.py",
+            "console": "integratedTerminal",
+            "args": [
+                "14",
             ]
         },
         {

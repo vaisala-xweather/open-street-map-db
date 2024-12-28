@@ -4,9 +4,12 @@ import sys
 from math import asin, cos, degrees, log, pi, radians, sin, sqrt, tan
 from pathlib import Path
 from typing import Any
+import subprocess
 
 DIR = Path(__file__).parent
 output_file = DIR / "tiles.txt"
+if output_file.exists():
+    output_file.unlink()
 
 
 def degree_to_tile(lat_deg, lon_deg, zoom) -> tuple[int, int]:
@@ -24,11 +27,16 @@ def degree_to_tile(lat_deg, lon_deg, zoom) -> tuple[int, int]:
     return x, y
 
 
-def generate_tiles(max_zoom, bbox) -> None:
-    with open(output_file, "w") as f:
-        for z in range(max_zoom + 1):
-            min_x, min_y = degree_to_tile(lat_deg=bbox[1], lon_deg=bbox[0], zoom=z)
-            max_x, max_y = degree_to_tile(lat_deg=bbox[3], lon_deg=bbox[2], zoom=z)
+def generate_tiles(
+    max_zoom: int,
+    bbox: tuple[float, float, float, float],
+    start_zoom: int = 0,
+) -> None:
+    print(f"Generating tiles for zoom levels {start_zoom} to {max_zoom} for {bbox}")
+    with open(output_file, "a") as f:
+        for z in range(start_zoom, max_zoom + 1):
+            min_x, max_y = degree_to_tile(lat_deg=bbox[1], lon_deg=bbox[0], zoom=z)
+            max_x, min_y = degree_to_tile(lat_deg=bbox[3], lon_deg=bbox[2], zoom=z)
             print(f"Processing zoom level {z}")
             for x in range(min_x, max_x + 1):
                 for y in range(min_y, max_y + 1):
@@ -49,7 +57,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 
-def bounding_box_from_point(lat, lon, radius_km):
+def bounding_box_from_point(lat, lon, radius_km) -> tuple[float, float, float, float]:
     R = 6371  # Earth radius in kilometers
     lat_rad = radians(lat)
     lon_rad = radians(lon)
@@ -61,7 +69,7 @@ def bounding_box_from_point(lat, lon, radius_km):
     min_lon = lon - degrees(delta_lon)
     max_lon = lon + degrees(delta_lon)
 
-    return [min_lon, max_lat, max_lon, min_lat]
+    return (min_lon, min_lat, max_lon, max_lat)
 
 
 if __name__ == "__main__":
@@ -71,8 +79,8 @@ if __name__ == "__main__":
         "--bbox",
         nargs=4,
         type=float,
-        default=[-180, 85.06, 180, -85.06],
-        help="Bounding box coordinates in ULLR format: min_lon max_lat max_lon min_lat (default: global coordinates)",
+        default=(-180, -85.06, 180, 85.06),
+        help="Bounding box coordinates in left, bottom, right, top format: min_lon min_lat max_lon max_lat (default: global coordinates)",
     )
     parser.add_argument(
         "--latlon",
@@ -80,6 +88,11 @@ if __name__ == "__main__":
         type=float,
         metavar=("LAT", "LON", "RADIUS"),
         help="Latitude, Longitude, and Radius (in km) to generate bounding box",
+    )
+    parser.add_argument(
+        "--global-zoom",
+        type=int,
+        help="Zoom level to use global coordinates (-180 to 180, -85.06 to 85.06)",
     )
 
     args = parser.parse_args()
@@ -108,4 +121,14 @@ if __name__ == "__main__":
         print("Error: Invalid bbox coordinates")
         sys.exit(1)
 
-    generate_tiles(max_zoom, bbox)
+    if args.global_zoom:
+        generate_tiles(args.global_zoom, (-180, -85.06, 180, 85.06))
+        generate_tiles(max_zoom, bbox, args.global_zoom + 1)
+    else:
+        generate_tiles(max_zoom, bbox)
+
+    file_stats = output_file.stat()
+    print(f"\nOutput file size: {file_stats.st_size:,} bytes")
+
+    result = subprocess.run(['wc', '-l', str(output_file)], capture_output=True, text=True)
+    print(f"Number of lines: {int(result.stdout.split()[0]):,}")

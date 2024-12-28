@@ -13,6 +13,9 @@ themepark:add_table{
     geom = 'point',
     columns = themepark:columns('core/name', {
         { column = 'energy_source', type = 'text' },
+        { column = 'operator', type = 'text' },
+        { column = 'manufacturer', type = 'text' },
+        { column = 'model', type = 'text' },
         { column = 'solar_tracking', type = 'text' },
     })
 }
@@ -57,6 +60,9 @@ themepark:add_proc('node', function(object, data)
         a.energy_source = source
 
         a.solar_tracking = object.tags['generator:solar:tracking']
+        a.operator = object.tags['operator']
+        a.manufacturer = object.tags['manufacturer']
+        a.model = object.tags['manufacturer:type']
 
         themepark:insert('power_generators', a, object.tags)
     end
