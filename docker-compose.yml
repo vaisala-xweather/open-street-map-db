@@ -8,24 +8,26 @@ services:
   db:
     image: postgis/postgis:17-3.5
     volumes:
-      - ./scripts/init-postgis-osm.sh:/docker-entrypoint-initdb.d/99-osm.sh:ro
+      - ./scripts/init-postgis-maps.sh:/docker-entrypoint-initdb.d/99-maps.sh:ro
       - ./data/db:/var/lib/postgresql/data:rw
     shm_size: 2GB
     environment:
-      - POSTGRES_DB=gis
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_ADMIN_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_ADMIN_PASSWORD}
+      - POSTGRES_MAPS_USER=${POSTGRES_MAPS_USER}
+      - POSTGRES_MAPS_PASSWORD=${POSTGRES_MAPS_PASSWORD}
+      - POSTGRES_MAPS_DB=${POSTGRES_MAPS_DB}
     ports:
       - "5432:5432"
     networks:
       - open-street-map
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_MAPS_DB} -U ${POSTGRES_MAPS_USER}"]
       interval: 5s
       timeout: 30s
       retries: 5
-      start_period: 10s
+      start_period: 15s
 
   import:
     build:
@@ -35,18 +37,20 @@ services:
     environment:
       LUA_PATH: /config/osm2pgsql-themepark/lua/?.lua;;
       THEMEPARK_PATH: "/config/osm2pgsql-themepark:/config/xweather-themepark/themes"
-      THEMEPARK_DEBUG: "true"
+      # THEMEPARK_DEBUG: "true"
+      # For importing via org2ogr
       PGHOST: db
-      PGUSER: osm
-      PGPASSWORD: osm
+      POSTGRES_MAPS_DB: ${POSTGRES_MAPS_DB}
+      PGUSER: ${POSTGRES_MAPS_USER}
+      PGPASSWORD: ${POSTGRES_MAPS_PASSWORD}
     volumes:
       - ./config/osm2pgsql:/config:ro
       - ./scripts:/scripts:ro
       - ./data/downloads/:/data:rw
-      - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
+      # - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/us-midwest.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/north-america.osm.pbf:/osm.pbf:ro
-      # - ./data/downloads/world.osm.pbf:/osm.pbf:ro
+      - ./data/downloads/world.osm.pbf:/osm.pbf:ro
       - ./data/import-cache:/cache:rw
     networks:
       - open-street-map
@@ -61,9 +65,9 @@ services:
       - --cache
       - "4096"
       - -S
-      - /config/style.lua
+      - /config/style-power-only.lua
       - -d
-      - 'postgresql://osm:osm@db/osm'
+      - 'postgresql://${POSTGRES_MAPS_USER}:${POSTGRES_MAPS_PASSWORD}@db/${POSTGRES_MAPS_DB}'
       - /osm.pbf
 
 
@@ -83,9 +87,9 @@ services:
     entrypoint: osm2pgsql-gen
     command:
       - -d
-      - 'postgresql://osm:osm@db/osm'
+      - 'postgresql://${POSTGRES_MAPS_USER}:${POSTGRES_MAPS_PASSWORD}@db/${POSTGRES_MAPS_DB}'
       - -S
-      - /config/style.lua
+      - /config/style-power-only.lua
 
   tile-server:
     image: gospatial/tegola:edge
@@ -103,9 +107,9 @@ services:
     networks:
       - open-street-map
     environment:
-      - POSTGRES_USER=osm
-      - POSTGRES_PASSWORD=osm
-      - POSTGRES_DBNAME=osm
+      - POSTGRES_USER=${POSTGRES_MAPS_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_MAPS_PASSWORD}
+      - POSTGRES_DBNAME=${POSTGRES_MAPS_DB}
       - POSTGRES_PRIVATE_PORT=5432
       - POSTGRES_HOST=db
       - TEGOLA_PORT=9090

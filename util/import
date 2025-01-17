@@ -4,10 +4,12 @@ set -euo pipefail
 DIR="$(dirname "$(readlink -f "$0")")"
 cd $DIR/../
 
-docker compose up -d db
-sleep 5
-docker compose run --remove-orphans import-extra oceans
-docker compose run import-extra continents
-docker compose run import-extra coastlines
+docker compose up --wait -d db
+# docker compose run --remove-orphans import-extra osm-oceans
+# docker compose run import-extra osm-continents
+# docker compose run import-extra osm-coastlines
+# docker compose run import-extra usgs-wind-us
+# docker compose run import-extra usgs-solar-us
+# docker compose run import-extra us-hifld-transmission-lines
 docker compose up import
-docker compose up import-gen
+# docker compose up import-gen

@@ -6,16 +6,10 @@
             "port": 5432,
             "driver": "PostgreSQL",
             "name": "Local Testing",
-            "database": "osm",
+            "database": "maps",
             "username": "docker",
             "password": "docker"
         },
-        {
-            "previewLimit": 50,
-            "driver": "SQLite",
-            "name": "Mbtiles Testing",
-            "database": "./data/mvt_world.sqlite"
-        }
     ],
     "sqltools.useNodeRuntime": true
 }

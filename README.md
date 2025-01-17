@@ -16,7 +16,15 @@ information in a visual way.
 ## Key Concepts
 
 Following our standard Xweather approach - how can we make data make sense at each processing step?
-1. Importing OSM data into Postgres
+
+1. Importing data into Postgres
+    1. Prefix data with source ID like `osm_`, `natearth_`, etc
+    1. Analyze data - use the `THEMEPARK_DEBUG=on` flag to import all properties into the DB into an `HSTORE` [type hash column](https://www.postgresql.org/docs/current/hstore.html) (all keys and values are strings! Value can be NULL)
+        1. For each database, iterate over each key/value pair in the tags HSTORE column and run stats on it - # of unique values, number of nulls, top 10 frequent values
+    1. Iterate and decide which values to store directly in the DB for this application
+1. Create QGIS viewing style to view all layers and properties
+1. Create Tegola views for each use case
+1. Run pmtiles import to pull from Tegola and create an output pmtiles for the map.
 
 Under the hood, this is a Postgres database. Features with different values we want to keep, need to go into different
 tables. When querying features back out, we can transform that data further, only selecting what we want at each step.
@@ -27,7 +35,7 @@ There are a lot of tools, we have found:
 
 1. **osm2pgsql** - Seemingly recommended by Open Street Maps group, imports data to a postgres database
 1. planetiler - A large java project that dumps directly to pmtiles. It's fast, goes right into tiles
-    1. pmtiles uses this for their generation https://github.com/protomaps/basemaps
+    1. pmtiles uses this for their generation <https://github.com/protomaps/basemaps>
 1. imposm3 - Dies during large global imports, has Go segfaults
 
 ### Tile Schemas
@@ -54,11 +62,11 @@ conventions on how to present that data, however:
         1. `water`
         1. `water_name`
         1. `waterway`
-    1. An example Tegola file: https://github.com/dechristopher/tegola-omt/blob/master/config.toml
+    1. An example Tegola file: <https://github.com/dechristopher/tegola-omt/blob/master/config.toml>
     1. Seth's Opinion
         1. things they do well:
             1. Water stuff - putting together oceans + lakes, separating out streams into waterway
-            1. landcover and landuse
+            1. landcover and landuse - see https://oceanservice.noaa.gov/facts/lclu.html
             1. aeroway is everything airports/heliports
             1. globallandcover is a nice zoomed out representation of forest, scrub, farmland
             1. mountainpeak - Ridges and points identifying mountain features
@@ -67,13 +75,37 @@ conventions on how to present that data, however:
             1. housenumber is a bad name, it's addresses
             1. aerowaydromes (airport areas) are really landuse aeren't they?
             1. parks should be landuse
+            1. mountain_peak could be a sub type in poi
+            1. Place vs poi is confusing
 
 1. [Tilezen Vector Tile Format](https://tilezen.readthedocs.io/en/latest/layers/)
     1. This is a popular format like on [Pmtiles' Demo Page](https://pmtiles.io/?url=https%3A%2F%2Fdata.source.coop%2Fprotomaps%2Fopenstreetmap%2Fv4.pmtiles#map=10.38/44.8707/-93.2188)
 
 1. [Shortbread Layer Standard v1](https://shortbread-tiles.org/schema/1.0/)
     1. This is a published spec of how the data is separated and layered, a spec is better than no spec.
-    1. Seth's Opinion - These guys split things in kind of weird ways...
+    1. Seth's Opinion - These guys split all sorts of things in kind of weird ways...
+
+1. [Mapbox Streets](https://github.com/mapbox/mapbox-gl-styles/blob/master/styles/streets-v12.json)
+    1. Layer List:
+        1. admin
+        1. aeroway
+        1. airport_label
+        1. building
+        1. depth
+        1. hillshade
+        1. housenum_label
+        1. landcover
+        1. landuse
+        1. landuse_overlay - Just national-park
+        1. motorway_junction
+        1. natural_label
+        1. place_label
+        1. poi_label
+        1. road
+        1. structure
+        1. transit_stop_label
+        1. water
+        1. waterway
 
 ### Additional tools
 

@@ -26,6 +26,8 @@ themepark:set_option('tags', 'all_tags')
 -- index). This is needed for instance when you want to edit the data in QGIS.
 themepark:set_option('unique_id', 'id')
 
+themepark:set_option('prefix', 'osm_')
+
 -- ---------------------------------------------------------------------------
 -- Choose which names from which languages to use in the map.
 -- See 'themes/core/README.md' for details.
@@ -44,10 +46,6 @@ themepark:add_topic('core/name-with-fallback', {
 -- --------------------------------------------------------------------------
 
 themepark:add_topic('core/layer')
-
-themepark:add_topic('external/oceans', { name = 'oceans' })
-themepark:add_topic('external/continents', { name = 'continents' })
-themepark:add_topic('external/coastlines', { name = 'coastlines' })
 
 themepark:add_topic('shortbread_v1/aerialways')  -- cable cars, gondolas, etc.
 themepark:add_topic('xweather_shortbread_v1/aeroways')
