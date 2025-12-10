@@ -13,10 +13,11 @@ import requests
 
 def extract_fields(
     pbf_directory: Path, expected_layer_ids: list[str]
-) -> dict[str, dict[str, str]]:
+) -> dict[str, dict[str, str]]:s
     fields = {}
-    for file_path in pbf_directory.rglob("*.pbf"):
-        if file_path.stat().st_size < 5000:  # Skip files smaller than 5K
+
+    for file_path in pbf_directory.rglob("*"):
+        if file_path.is_dir() or file_path.stat().st_size < 5000:  # Skip files smaller than 5K
             continue
         print(f"Processing {file_path}")
         with open(file_path, "rb") as f:
@@ -42,35 +43,6 @@ def extract_fields(
     return fields
 
 
-def generate_metadata(fields) -> dict[str, Any]:
-    """
-    Generates metadata for a set of vector tiles
-
-    Tegola outputs TileJSON data: https://tegola.io/documentation/http-endpoints/#get-capabilitiesmapjson
-    """
-
-    tegola_response = requests.get(
-        "http://tile-server:9090/capabilities/mvt_world.json"
-    )
-    tegola_metadata = tegola_response.json()
-
-    metadata = {
-        "name": "Xweather OSM",
-        "format": "pbf",
-        "bounds": ",".join(tegola_metadata["bounds"]),
-        "center": ",".join(tegola_metadata["center"]),
-        "minzoom": tegola_metadata["minzoom"],
-        "maxzoom": tegola_metadata["maxzoom"],
-        "attribution": tegola_metadata["attribution"],
-        "description": tegola_metadata["description"],
-        "type": "overlay",
-        "version": "3",
-        "json": {"vector_layers": tegola_metadata["vector_layers"]},
-    }
-
-    return metadata
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate metadata from PBF files for use in mbtiles \
@@ -94,7 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tegola_response = requests.get(
-        "http://tile-server:9090/capabilities/mvt_world.json"
+        "http://localhost:9090/capabilities/mvt_power.json"
     )
     tegola_metadata = tegola_response.json()
 

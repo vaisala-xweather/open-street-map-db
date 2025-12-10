@@ -13,10 +13,21 @@ themepark:add_table{
     geom = 'point',
     columns = themepark:columns('core/name', {
         { column = 'energy_source', type = 'text' },
+        { column = 'generator_type', type = 'text' },
         { column = 'operator', type = 'text' },
+        { column = 'start_date', type = 'text' },
+        { column = 'capacity_mw', type = 'real' },
         { column = 'manufacturer', type = 'text' },
         { column = 'model', type = 'text' },
+        -- Solar Sources
         { column = 'solar_tracking', type = 'text' },
+        -- Wind Sources
+        { column = 'wind_hub_height_m', type = 'real' },
+        { column = 'wind_rotor_diameter_m', type = 'real' },
+        { column = 'wind_total_height_m', type = 'real' },
+
+        -- Other IDs
+        { column = 'id_us_eia', type = 'int' },
     })
 }
 

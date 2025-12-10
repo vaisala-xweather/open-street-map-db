@@ -4,12 +4,76 @@ set -euo pipefail
 DIR="$(dirname "$(readlink -f "$0")")"
 cd $DIR/../
 
+# Parse arguments
+SKIP_IMPORT_EXTRA=false
+SKIP_OSM_DOWNLOAD=false
+SKIP_OSM_IMPORTER=false
+SKIP_IMPORT_GEN=false
+
+for arg in "$@"; do
+  case $arg in
+    --help|-h)
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Import OpenStreetMap data and related datasets into PostgreSQL/PostGIS."
+      echo ""
+      echo "Options:"
+      echo "  --skip-import-extra    Skip importing extra datasets (oceans, continents, coastlines, wind, solar, transmission lines)"
+      echo "  --skip-osm-download    Skip downloading the OSM planet file from S3"
+      echo "  --skip-osm-importer    Skip the main OSM import step"
+      echo "  --skip-import-gen      Skip the import-gen step"
+      echo "  --help, -h             Show this help message"
+      exit 0
+      ;;
+    --skip-import-extra)
+      SKIP_IMPORT_EXTRA=true
+      shift
+      ;;
+    --skip-osm-download)
+      SKIP_OSM_DOWNLOAD=true
+      shift
+      ;;
+    --skip-osm-importer)
+      SKIP_OSM_IMPORTER=true
+      shift
+      ;;
+    --skip-import-gen)
+      SKIP_IMPORT_GEN=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 [--skip-import-extra] [--skip-osm-download] [--skip-osm-importer] [--skip-import-gen]"
+      echo "Use --help for more information."
+      exit 1
+      ;;
+  esac
+done
+
 docker compose up --wait -d db
-# docker compose run --remove-orphans import-extra osm-oceans
-# docker compose run import-extra osm-continents
-# docker compose run import-extra osm-coastlines
-# docker compose run import-extra usgs-wind-us
-# docker compose run import-extra usgs-solar-us
-# docker compose run import-extra us-hifld-transmission-lines
-docker compose up import
-# docker compose up import-gen
+
+# These are all the extra data sets that can be useful outside of basic OSM data
+if [ "$SKIP_IMPORT_EXTRA" = false ]; then
+  docker compose run --remove-orphans import-extra osm-oceans
+  docker compose run import-extra osm-continents
+  docker compose run import-extra osm-coastlines
+  docker compose run import-extra usgs-wind-us
+  docker compose run import-extra usgs-solar-us
+  docker compose run import-extra us-hifld-transmission-lines
+fi
+
+# Copy the full OSM data set from S3
+if [ "$SKIP_OSM_DOWNLOAD" = false ]; then
+  # Import the latest planet file
+  aws s3 cp --no-sign-request s3://osm-pds/planet-latest.osm.pbf ./data/downloads/world.osm.pbf
+fi
+
+# Skip if --skip-osm-importer was passed
+if [ "$SKIP_OSM_IMPORTER" = false ]; then
+  docker compose up --remove-orphans import
+fi
+
+# Skip if --skip-import-gen was passed
+if [ "$SKIP_IMPORT_GEN" = false ]; then
+  docker compose up import-gen
+fi

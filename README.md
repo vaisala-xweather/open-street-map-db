@@ -26,14 +26,15 @@ Following our standard Xweather approach - how can we make data make sense at ea
 1. Create Tegola views for each use case
 1. Run pmtiles import to pull from Tegola and create an output pmtiles for the map.
 
-Under the hood, this is a Postgres database. Features with different values we want to keep, need to go into different
-tables. When querying features back out, we can transform that data further, only selecting what we want at each step.
+Under the hood, this is a relational Postgres database. Features with different values we want to keep, need to go into
+different tables. When querying features back out, we can transform that data further, only selecting what we want at
+each step.
 
 ## Tools
 
 There are a lot of tools, we have found:
 
-1. **osm2pgsql** - Seemingly recommended by Open Street Maps group, imports data to a postgres database
+1. **osm2pgsql** - Seemingly recommended by Open Street Maps group, imports data to a postgres database. This is great because it separates data import and tile generation steps.
 1. planetiler - A large java project that dumps directly to pmtiles. It's fast, goes right into tiles
     1. pmtiles uses this for their generation <https://github.com/protomaps/basemaps>
 1. imposm3 - Dies during large global imports, has Go segfaults
@@ -110,6 +111,28 @@ conventions on how to present that data, however:
 ### Additional tools
 
 1. Tegola - Query for layers from a postgis database and organize layers
+
+
+## Running/Importing/Generating Data
+
+`docker compose` is used heavily to run these steps.
+
+> [!WARNING]
+> You probably want ~1TB of disk space free to do a full planet import
+
+1. `./util/import` runs the import of OSM data (and friends) into Postgres using osm2pgsql
+    1. START ON A NON-GLOBAL EXTRACT TO TEST EVERYTHING FIRST
+    1. Imports all the secondary data sets for borders and oceans (import-extra)
+         1. Import extra may get stuck sometimes and we need to just delete the source zip files and try again. For some reason they   have state.
+    1. Imports main OSM data set into Postgres
+    1. Use `--help` to see options to skip if you want to do only parts of the import
+    1. It will block on `Storing properties to table '"public"."osm2pgsql_properties"'.` for HOURS.
+        1. As this runs, you can use `./util/import-status` to see progress.
+1. `./util/generate-tiles` runs Tegola to generate pmtiles from the Postgres data
+    1. This uses a `tegola` tile server to pull data from Postgres using SQL queries for different layers
+    1. This also uses a file cache for the tiles - we query all the tiles we want and let the tile cache store them
+    1. Then we take all the files in the tile cache and turn it into a mbtiles sqlite file
+    1. Finally we convert that to pmtiles
 
 
 ## TODO

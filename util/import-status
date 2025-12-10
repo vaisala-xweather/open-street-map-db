@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}         OSM2PGSQL Import Status${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# Check if import container is running
+echo -e "${YELLOW}Container Status:${NC}"
+docker compose ps import import-extra --format "table {{.Name}}\t{{.Status}}\t{{.RunningFor}}"
+echo ""
+
+# Check active database queries
+echo -e "${YELLOW}Active Database Operations:${NC}"
+docker compose exec -T db psql -U maps-user -d maps -t -A -F$'\t' -c \
+  "SELECT
+    CASE
+      WHEN query LIKE '%COPY%planet_osm_nodes%' THEN 'Importing nodes'
+      WHEN query LIKE '%COPY%planet_osm_ways%' THEN 'Importing ways'
+      WHEN query LIKE '%COPY%planet_osm_rels%' THEN 'Importing relations'
+      WHEN query LIKE '%CREATE INDEX%' THEN 'Creating indexes'
+      WHEN query LIKE '%ANALYZE%' THEN 'Analyzing tables'
+      ELSE LEFT(query, 60)
+    END as operation,
+    NOW() - query_start as duration
+  FROM pg_stat_activity
+  WHERE datname = 'maps' AND state != 'idle' AND pid != pg_backend_pid();" 2>/dev/null | \
+  awk -F'\t' '{printf "  %s (running for %s)\n", $1, $2}' || echo -e "  ${RED}No active operations${NC}"
+echo ""
+
+# Show table sizes
+echo -e "${YELLOW}Table Sizes:${NC}"
+docker compose exec -T db psql -U maps-user -d maps -t -A -F$'\t' -c \
+  "SELECT
+    t.tablename,
+    pg_size_pretty(pg_total_relation_size('public.'||t.tablename)) AS size,
+    COALESCE(s.n_live_tup, 0) as rows
+  FROM pg_tables t
+  LEFT JOIN pg_stat_user_tables s ON t.tablename = s.relname AND s.schemaname = 'public'
+  WHERE t.schemaname = 'public'
+  ORDER BY pg_total_relation_size('public.'||t.tablename) DESC;" 2>/dev/null | \
+  awk -F'\t' '{if (NF==3) printf "  %-40s %10s  %15s rows\n", $1, $2, $3}'
+echo ""
+
+# Show disk space
+echo -e "${YELLOW}Database Disk Usage:${NC}"
+docker compose exec -T db psql -U maps-user -d maps -t -A -c \
+  "SELECT pg_size_pretty(pg_database_size('maps'));" 2>/dev/null | \
+  sed 's/^[ \t]*//' | awk '{printf "  Total database size: %s\n", $0}'
+
+echo ""
+echo -e "${BLUE}═════════════════════════════════════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}Tip:${NC} Run this script with \`watch -c -n 10 util/import-status\` to monitor import progress."
+echo -e "${BLUE}═════════════════════════════════════════════════════════════════════════════════════════════${NC}"

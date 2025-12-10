@@ -47,11 +47,10 @@
             "program": "./scripts/generate_metadata.py",
             "console": "integratedTerminal",
             "args": [
-                "14",
-                "--latlon",
-                "44.883",
-                "-93.222",
-                "100"
+                "--name",
+                "mvt_power",
+                "./data/tile-cache/mvt_power",
+                "./data/tile-cache/mvt_power/metadata.json",
             ]
         }
     ]

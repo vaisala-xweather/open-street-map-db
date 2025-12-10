@@ -150,7 +150,7 @@ EOF
             # https://hub.arcgis.com/api/v3/datasets/bd24d1a282c54428b024988d32578e59_0/downloads/data?format=shp&spatialRefId=3857&where=1%3D1
             table="us_hifld_transmission_lines"
             # The gov website links diretly to Arc. Thanks for hosting this data I guess?
-            wget -L -N -c -O 'Electric_Power_Transmission_Lines.zip' 'https://hub.arcgis.com/api/v3/datasets/bd24d1a282c54428b024988d32578e59_0/downloads/data?format=shp&spatialRefId=3857&where=1%3D1'
+            wget -L -N -c -O 'Electric_Power_Transmission_Lines.zip' 'https://hub.arcgis.com/api/v3/datasets/d4090758322c4d32a4cd002ffaa0aa12/downloads/data?format=shp&spatialRefId=3857&where=1%3D1'
             shapefile_name="$(unzip -l Electric_Power_Transmission_Lines.zip | grep -o '[^/]*\.shp' | awk '{print $4}')"
             shapefile_base="${shapefile_name%.*}"
             # "_ogr_geometry_" MUST BE IN DOUBLE QUOTES
@@ -187,7 +187,7 @@ import() {
 
     echo "Importing $file to ${POSTGRES_MAPS_DB}.$layer..."
 
-    sql_statement="SELECT $fields FROM $inlayer"
+    sql_statement="SELECT $fields FROM \"$inlayer\""
 
     force_geometry_flag=""
     if [ "$force_geometry" != "false" ]; then

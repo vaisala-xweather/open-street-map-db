@@ -17,7 +17,7 @@ local TAGINFO = false
 local themepark = require('themepark')
 
 -- For debug mode set this or the environment variable THEMEPARK_DEBUG.
---themepark.debug = true
+themepark.debug = true
 
 -- Add JSONB column `tags` with original OSM tags in debug mode
 themepark:set_option('tags', 'all_tags')
