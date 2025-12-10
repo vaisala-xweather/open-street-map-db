@@ -77,3 +77,54 @@ fi
 if [ "$SKIP_IMPORT_GEN" = false ]; then
   docker compose up import-gen
 fi
+
+# This is some specific derived stuff
+
+sudo docker exec osm-postgis-db psql -U maps-user -d maps -c "
+-- Drop the view if it exists
+DROP MATERIALIZED VIEW IF EXISTS public.osm_power_generators_enriched CASCADE;
+
+-- Create materialized view with USGS enrichment
+CREATE MATERIALIZED VIEW public.osm_power_generators_enriched AS
+SELECT
+    osm.id,
+    osm.node_id,
+    osm.name,
+    osm.energy_source,
+    osm.generator_type,
+    osm.operator,
+    osm.geom,
+    -- Enriched fields from USGS data (for wind) or OSM data
+    COALESCE(usgs.project_name, osm.name) as project_name,
+    COALESCE(usgs.year_online::text, osm.start_date) as year_online,
+    COALESCE(usgs.hub_height_m, osm.wind_hub_height_m) as hub_height_m,
+    COALESCE(usgs.rotor_diameter_m, osm.wind_rotor_diameter_m) as rotor_diameter_m,
+    COALESCE(usgs.total_height_m, osm.wind_total_height_m) as total_height_m,
+    COALESCE(usgs.manufacturer, osm.manufacturer) as manufacturer,
+    COALESCE(usgs.model, osm.model) as model,
+    COALESCE(usgs.capacity_mw, osm.capacity_mw) as capacity_mw
+FROM public.osm_power_generators osm
+LEFT JOIN LATERAL (
+    SELECT
+        project_name,
+        year_online,
+        hub_height_m,
+        rotor_diameter_m,
+        total_height_m,
+        manufacturer,
+        model,
+        capacity_mw
+    FROM public.usgs_power_wind_generators usgs
+    WHERE ST_DWithin(osm.geom, usgs.geom, 100)
+    ORDER BY ST_Distance(osm.geom, usgs.geom)
+    LIMIT 1
+) usgs ON osm.energy_source = 'wind';
+
+-- Create indexes for performance
+CREATE INDEX osm_power_generators_enriched_geom_idx ON public.osm_power_generators_enriched USING gist(geom);
+CREATE INDEX osm_power_generators_enriched_energy_source_idx ON public.osm_power_generators_enriched (energy_source);
+CREATE INDEX osm_power_generators_enriched_project_name_idx ON public.osm_power_generators_enriched (project_name);
+CREATE INDEX osm_power_generators_enriched_id_idx ON public.osm_power_generators_enriched (id);
+
+ANALYZE public.osm_power_generators_enriched;
+"
