@@ -74,13 +74,10 @@ import() {
 	local table="$1"
 	local file="$2"
 	local inlayer="$3"
-	local fields="${4:-\"_ogr_geometry_\"}"
-	local force_geometry="${5:-false}"
-	local wrapdateline="${6:-false}"
+	local force_geometry="${4:-false}"
+	local wrapdateline="${5:-false}"
 
 	echo "Importing $file to ${POSTGRES_MAPS_DB}.$table..."
-
-	sql_statement="SELECT $fields FROM \"$inlayer\""
 
 	force_geometry_flag=""
 	if [ "$force_geometry" != "false" ]; then
@@ -97,13 +94,14 @@ import() {
 		-lco FID=id \
 		-lco SPATIAL_INDEX=NONE \
 		-lco LAUNDER=NO \
+		-lco PRECISION=NO \
 		-lco OVERWRITE=YES \
 		-nlt PROMOTE_TO_MULTI \
 		-t_srs EPSG:3857 \
 		$force_geometry_flag \
 		$wrapdateline_flag \
-		-sql "$sql_statement" \
-		"$file"; then
+		"$file" \
+		"$inlayer"; then
 		echo "Error: ogr2ogr failed for $file"
 		return 1
 	fi
@@ -403,7 +401,6 @@ download-ne "physical/ne_10m_geographic_lines"
 import "ne_geographic_lines" \
 	"/vsizip/natural_earth/physical/ne_10m_geographic_lines.zip/ne_10m_geographic_lines.shp" \
 	"ne_10m_geographic_lines" \
-	"\"_ogr_geometry_\"" \
 	"false" \
 	"true"
 
@@ -416,39 +413,63 @@ echo "=== Post-Processing: Merging North America datasets ==="
 # Merge Roads: Remove North America from global roads, then add detailed North America roads
 echo "--- Merging Roads (Global + North America supplement) ---"
 psql --quiet -d "$POSTGRES_MAPS_DB" <<-EOF
-	-- Create a coverage polygon from North America roads by buffering and creating convex hull
-	-- Buffer by ~50km (in Web Mercator units) to ensure we catch all overlapping roads
-	WITH na_coverage AS (
-		SELECT ST_Buffer(ST_ConvexHull(ST_Collect(geom)), 50000) AS coverage_geom
-		FROM ne_roads_north_america
-	)
-	DELETE FROM ne_roads
-	WHERE ST_Intersects(
-		geom,
-		(SELECT coverage_geom FROM na_coverage)
-	);
-
-	-- Insert North America roads into the main roads table
-	-- Dynamically build INSERT with only common columns, excluding 'id' to avoid duplicates
+	-- Add any missing columns from North America supplement to base table
 	DO \$\$
 	DECLARE
-		common_cols text;
+		r RECORD;
 	BEGIN
+		FOR r IN
+			SELECT column_name, data_type
+			FROM information_schema.columns
+			WHERE table_name = 'ne_roads_north_america'
+			  AND column_name NOT IN (
+				  SELECT column_name
+				  FROM information_schema.columns
+				  WHERE table_name = 'ne_roads'
+			  )
+		LOOP
+			EXECUTE format('ALTER TABLE ne_roads ADD COLUMN IF NOT EXISTS %I %s', r.column_name, r.data_type);
+		END LOOP;
+	END \$\$;
+
+	-- Delete North America roads from global dataset using continent field
+	DELETE FROM ne_roads WHERE continent = 'North America';
+
+	-- Insert North America roads with all columns (NULL for missing ones)
+	DO \$\$
+	DECLARE
+		all_cols text;
+		na_cols text;
+	BEGIN
+		-- Get all columns from the merged table (excluding id)
 		SELECT string_agg(column_name, ', ' ORDER BY ordinal_position)
-		INTO common_cols
+		INTO all_cols
 		FROM information_schema.columns
 		WHERE table_name = 'ne_roads'
-		  AND column_name != 'id'  -- Exclude id column to avoid duplicates
-		  AND column_name IN (
-			  SELECT column_name
-			  FROM information_schema.columns
-			  WHERE table_name = 'ne_roads_north_america'
-			    AND column_name != 'id'
-		  );
+		  AND column_name != 'id';
 
-		EXECUTE format('INSERT INTO ne_roads (%s) SELECT %s FROM ne_roads_north_america', common_cols, common_cols);
-	END \$\$;	-- Drop the North America supplement table as it's now merged
-	DROP TABLE ne_roads_north_america;	-- Reindex for optimal performance
+		-- Build SELECT with COALESCE for columns that might not exist in source
+		SELECT string_agg(
+			CASE
+				WHEN column_name IN (SELECT column_name FROM information_schema.columns WHERE table_name = 'ne_roads_north_america')
+				THEN column_name
+				ELSE 'NULL AS ' || column_name
+			END,
+			', '
+			ORDER BY ordinal_position
+		)
+		INTO na_cols
+		FROM information_schema.columns
+		WHERE table_name = 'ne_roads'
+		  AND column_name != 'id';
+
+		EXECUTE format('INSERT INTO ne_roads (%s) SELECT %s FROM ne_roads_north_america', all_cols, na_cols);
+	END \$\$;
+
+	-- Drop the North America supplement table as it's now merged
+	DROP TABLE ne_roads_north_america;
+
+	-- Reindex for optimal performance
 	REINDEX TABLE ne_roads;
 	ANALYZE ne_roads;
 EOF
@@ -456,39 +477,63 @@ EOF
 # Merge Railroads: Remove North America from global railroads, then add detailed North America railroads
 echo "--- Merging Railroads (Global + North America supplement) ---"
 psql --quiet -d "$POSTGRES_MAPS_DB" <<-EOF
-	-- Create a coverage polygon from North America railroads by buffering and creating convex hull
-	-- Buffer by ~50km (in Web Mercator units) to ensure we catch all overlapping railroads
-	WITH na_coverage AS (
-		SELECT ST_Buffer(ST_ConvexHull(ST_Collect(geom)), 50000) AS coverage_geom
-		FROM ne_railroads_north_america
-	)
-	DELETE FROM ne_railroads
-	WHERE ST_Intersects(
-		geom,
-		(SELECT coverage_geom FROM na_coverage)
-	);
-
-	-- Insert North America railroads into the main railroads table
-	-- Dynamically build INSERT with only common columns, excluding 'id' to avoid duplicates
+	-- Add any missing columns from North America supplement to base table
 	DO \$\$
 	DECLARE
-		common_cols text;
+		r RECORD;
 	BEGIN
+		FOR r IN
+			SELECT column_name, data_type
+			FROM information_schema.columns
+			WHERE table_name = 'ne_railroads_north_america'
+			  AND column_name NOT IN (
+				  SELECT column_name
+				  FROM information_schema.columns
+				  WHERE table_name = 'ne_railroads'
+			  )
+		LOOP
+			EXECUTE format('ALTER TABLE ne_railroads ADD COLUMN IF NOT EXISTS %I %s', r.column_name, r.data_type);
+		END LOOP;
+	END \$\$;
+
+	-- Delete North America railroads from global dataset using continent field
+	DELETE FROM ne_railroads WHERE continent = 'North America';
+
+	-- Insert North America railroads with all columns (NULL for missing ones)
+	DO \$\$
+	DECLARE
+		all_cols text;
+		na_cols text;
+	BEGIN
+		-- Get all columns from the merged table (excluding id)
 		SELECT string_agg(column_name, ', ' ORDER BY ordinal_position)
-		INTO common_cols
+		INTO all_cols
 		FROM information_schema.columns
 		WHERE table_name = 'ne_railroads'
-		  AND column_name != 'id'  -- Exclude id column to avoid duplicates
-		  AND column_name IN (
-			  SELECT column_name
-			  FROM information_schema.columns
-			  WHERE table_name = 'ne_railroads_north_america'
-			    AND column_name != 'id'
-		  );
+		  AND column_name != 'id';
 
-		EXECUTE format('INSERT INTO ne_railroads (%s) SELECT %s FROM ne_railroads_north_america', common_cols, common_cols);
-	END \$\$;	-- Drop the North America supplement table as it's now merged
-	DROP TABLE ne_railroads_north_america;	-- Reindex for optimal performance
+		-- Build SELECT with COALESCE for columns that might not exist in source
+		SELECT string_agg(
+			CASE
+				WHEN column_name IN (SELECT column_name FROM information_schema.columns WHERE table_name = 'ne_railroads_north_america')
+				THEN column_name
+				ELSE 'NULL AS ' || column_name
+			END,
+			', '
+			ORDER BY ordinal_position
+		)
+		INTO na_cols
+		FROM information_schema.columns
+		WHERE table_name = 'ne_railroads'
+		  AND column_name != 'id';
+
+		EXECUTE format('INSERT INTO ne_railroads (%s) SELECT %s FROM ne_railroads_north_america', all_cols, na_cols);
+	END \$\$;
+
+	-- Drop the North America supplement table as it's now merged
+	DROP TABLE ne_railroads_north_america;
+
+	-- Reindex for optimal performance
 	REINDEX TABLE ne_railroads;
 	ANALYZE ne_railroads;
 EOF
