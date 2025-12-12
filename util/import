@@ -54,12 +54,12 @@ docker compose up --wait -d db
 
 # These are all the extra data sets that can be useful outside of basic OSM data
 if [ "$SKIP_IMPORT_EXTRA" = false ]; then
-	docker compose run --remove-orphans import-extra osm-oceans
-	docker compose run import-extra osm-continents
-	docker compose run import-extra osm-coastlines
-	docker compose run import-extra usgs-wind-us
-	docker compose run import-extra usgs-solar-us
-	docker compose run import-extra us-hifld-transmission-lines
+	# docker compose run --remove-orphans import-extra osm-oceans
+	# docker compose run import-extra osm-continents
+	# docker compose run import-extra osm-coastlines
+	# docker compose run import-extra usgs-wind-us
+	# docker compose run import-extra usgs-solar-us
+	# docker compose run import-extra us-hifld-transmission-lines
 	docker compose run import-extra natural-earth
 fi
 

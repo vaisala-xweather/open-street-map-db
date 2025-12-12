@@ -57,6 +57,15 @@ process_dataset() {
 		download-osm-de coastlines-split-3857
 		import "${table}" /vsizip/coastlines-split-3857.zip/coastlines-split-3857 lines
 		;;
+	natural-earth)
+		# Call the Natural Earth import script
+		bash "$(dirname "$0")/download-import-natural-earth.sh" "$DIR"
+		# Return early since the script handles everything
+		return 0
+		;;
+
+
+
 	usgs-wind-us)
 		# Many EIA datasets are available at https://www.eia.gov/maps/maps.htm just point back to USGS
 		table="usgs_power_wind_generators"
