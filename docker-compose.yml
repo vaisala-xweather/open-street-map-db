@@ -48,10 +48,12 @@ services:
       - ./config/osm2pgsql:/config:ro
       - ./scripts:/scripts:ro
       - ./data/downloads/:/data:rw
-      - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
+      # Change the mapping for how large of data you want to import
+      # START SMALL! This can take many, many hours for large datasets
+      # - ./data/downloads/minnesota.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/us-midwest.osm.pbf:/osm.pbf:ro
       # - ./data/downloads/north-america.osm.pbf:/osm.pbf:ro
-      # - ./data/downloads/world.osm.pbf:/osm.pbf:ro
+      - ./data/downloads/world.osm.pbf:/osm.pbf:ro
       - ./data/import-cache:/cache:rw
     networks:
       - open-street-map
@@ -75,7 +77,7 @@ services:
   import-extra:
     extends: import
     entrypoint:
-      - /scripts/download-import-misc.sh
+      - /scripts/download-import-extra.sh
       - /data
     command: !override []
 
@@ -119,7 +121,7 @@ services:
 
   tile-cache:
     extends: tile-server
-    command: cache seed --config /config/tegola.conf --overwrite --bounds "-117.25,32.5,-117.0,32.75" --min-zoom 0 --max-zoom 14
+    command: cache seed --config /config/tegola.conf --map mvt_power --overwrite --bounds "-180.0,-85.0511,180.0,85.0511" --min-zoom 0 --max-zoom 9
     ports: !override []
     restart: no
 

@@ -13,7 +13,7 @@ import requests
 
 def extract_fields(
     pbf_directory: Path, expected_layer_ids: list[str]
-) -> dict[str, dict[str, str]]:s
+) -> dict[str, dict[str, str]]:
     fields = {}
 
     for file_path in pbf_directory.rglob("*"):
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tegola_response = requests.get(
-        "http://localhost:9090/capabilities/mvt_power.json"
+        "http://tile-server:9090/capabilities/mvt_power.json"
     )
     tegola_metadata = tegola_response.json()
 
