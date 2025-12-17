@@ -2,6 +2,8 @@
 
 Creating base maps for Weather data visualization
 
+![Tegola Web UI](docs/tegola-web-ui-example.png)
+
 ## Motivation
 
 We have some specific needs for when various data sets are shown to users. Those are:
@@ -13,31 +15,38 @@ information in a visual way.
 1. Provide a way to create high-resolution spatial subsets of data. For example, from zoom 8 to 14 for a specific area.
 1. Import other data sets with different licensing, like Natural Earth
 
+**Can we create a single, reproducible pipeline to create vector tiles for these use cases?**
+
 ## Key Concepts
 
 Following our standard Xweather approach - how can we make data make sense at each processing step?
 
-1. Importing data into Postgres
-    1. Prefix data with source ID like `osm_`, `natearth_`, etc
+1. Importing data into Postgres (`osm2pgsql` & `themepark`)
+    1. Prefix data with source ID like `osm_`, `ne_` (for Natural Earth), etc
     1. Analyze data - use the `THEMEPARK_DEBUG=on` flag to import all properties into the DB into an `HSTORE` [type hash column](https://www.postgresql.org/docs/current/hstore.html) (all keys and values are strings! Value can be NULL)
         1. For each database, iterate over each key/value pair in the tags HSTORE column and run stats on it - # of unique values, number of nulls, top 10 frequent values
     1. Iterate and decide which values to store directly in the DB for this application
-1. Create QGIS viewing style to view all layers and properties
-1. Create Tegola views for each use case
-1. Run pmtiles import to pull from Tegola and create an output pmtiles for the map.
+    1. Run `proc`esses to create derived columns and tables with simplified for lower zoom levels, or derived data.
+1. Create viewing style to view all layers and properties (`QGIS`)
+    1. Fast-iteration and debugging of data
+1. Create views for each use case (`tegola`)
+1. Run `pmtiles` import to pull from Tegola and create an output pmtiles for the map.
 
 Under the hood, this is a relational Postgres database. Features with different values we want to keep, need to go into
-different tables. When querying features back out, we can transform that data further, only selecting what we want at
+different tables using our themepark config. When querying features back out, we can transform that data further, only selecting what we want at
 each step.
 
 ## Tools
 
+![Import Status](docs/import-status-early.png)
+
 There are a lot of tools, we have found:
 
 1. **osm2pgsql** - Seemingly recommended by Open Street Maps group, imports data to a postgres database. This is great because it separates data import and tile generation steps.
-1. planetiler - A large java project that dumps directly to pmtiles. It's fast, goes right into tiles
+1. ~~planetiler~~ - A large java project that dumps directly to pmtiles. It's fast, goes right into tiles
     1. pmtiles uses this for their generation <https://github.com/protomaps/basemaps>
-1. imposm3 - Dies during large global imports, has Go segfaults
+1. ~~imposm3~~ - Dies during large global imports, has Go segfaults
+1. **Tegola** - Query for layers from a postgis database and organize layers
 
 ### Tile Schemas
 
@@ -108,11 +117,6 @@ conventions on how to present that data, however:
         1. water
         1. waterway
 
-### Additional tools
-
-1. Tegola - Query for layers from a postgis database and organize layers
-
-
 ## Running/Importing/Generating Data
 
 `docker compose` is used heavily to run these steps.
@@ -128,6 +132,13 @@ conventions on how to present that data, however:
     1. Use `--help` to see options to skip if you want to do only parts of the import
     1. It will block on `Storing properties to table '"public"."osm2pgsql_properties"'.` for HOURS.
         1. As this runs, you can use `./util/import-status` to see progress.
+1. View data in `QGIS` using one of the provided `.qgz` project files or make your own.
+    1. ![QGIS Example screenshot](docs/qgis-example.png)
+    1. Connect to the Postgres database using the "secrets" for the project
+1. `./util/start-tile-server-clean` starts a Tegola tile server connected to the Postgres database
+    1. View data in Tegola Web UI at <http://localhost:8080>
+    1. ![Tegola Example UI](docs/tegola-web-ui-example-small.png)
+    1. Use this to debug SQL queries for different layers
 1. `./util/generate-tiles` runs Tegola to generate pmtiles from the Postgres data
     1. This uses a `tegola` tile server to pull data from Postgres using SQL queries for different layers
     1. This also uses a file cache for the tiles - we query all the tiles we want and let the tile cache store them
