@@ -122,7 +122,7 @@ conventions on how to present that data, however:
 `docker compose` is used heavily to run these steps.
 
 > [!WARNING]
-> You probably want ~1TB of disk space free to do a full planet import
+> You probably want ~1.2TB of disk space free to do a full planet import
 
 1. `./util/import` runs the import of OSM data (and friends) into Postgres using osm2pgsql
     1. START ON A NON-GLOBAL EXTRACT TO TEST EVERYTHING FIRST
@@ -145,6 +145,11 @@ conventions on how to present that data, however:
     1. Then we take all the files in the tile cache and turn it into a mbtiles sqlite file
     1. Finally we convert that to pmtiles
 
+## Conclusion
+
+Thanks to the entire GIS and mapping community for building all these great open source data sets and tools. This is a big dataset!
+
+![Big Data Status](docs/big-data-set.png)
 
 ## TODO
 
